@@ -14,7 +14,7 @@ class Template {
 	protected $theme		= 'default';
 	protected $layouts   	= array();
 	protected $layout_data 	= array();	
-	protected $header_data	= array();
+	public $header_data		= array();
 	protected $footer_data	= array();
 	
 	protected $css 			= array();
@@ -143,6 +143,28 @@ class Template {
 		}
 		
 		return FALSE;
+	}
+
+	// --------------------------------------------------------------------	
+	
+	/**
+	 * Clear layouts
+	 */
+	public function clear_layout()
+	{
+		$this->layouts = array();
+		$this->layout_data = array();
+	}
+
+	// --------------------------------------------------------------------	
+	
+	/**
+	 * Set theme
+	 */
+	public function set_theme($theme)
+	{
+		$this->clear_layout();
+		$this->theme = $theme;
 	}
 
 	// --------------------------------------------------------------------	

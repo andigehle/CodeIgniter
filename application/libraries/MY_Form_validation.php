@@ -8,6 +8,95 @@
  * @author		Andreas Gehle
  */
 class MY_Form_validation extends CI_Form_validation {
+ 
+    /**
+     * Error Array
+     *
+     * Returns the error messages as an array
+     *
+     * @return  array
+     */
+    function error_array()
+    {
+        if (count($this->_error_array) === 0)
+        {
+          	return FALSE;
+        }
+        else
+		{
+        	return $this->_error_array;
+		}
+    }
+    
+    // --------------------------------------------------------------------
+ 
+    /**
+     * Add an error message
+	 * 
+	 * @access	public
+	 * @param	string	error message
+     */
+	function add_message($message)
+	{
+		if(is_array($message))
+		{
+			$this->_error_array = array_merge($this->_error_array, $message);
+		}
+		else
+		{
+			$this->_error_array[] = $message;
+		}
+	}
+    
+    // --------------------------------------------------------------------
+ 
+    /**
+     * Reset validation
+     *
+	 * @access	public
+     */	
+	public function reset_validation()
+	{
+		// Store current rules
+		$rules = $this->_config_rules;
+		
+		// Create new validation object
+		$this->CI->form_validation = new MY_Form_validation($rules);
+	}
+    
+    // --------------------------------------------------------------------
+
+	/**
+	 * Validate URL
+	 * 
+	 * @access	public
+	 * @param	string URL
+	 * @return	bool
+	 */
+    public function valid_url($url)
+    {
+		$this->CI->form_validation->set_message('valid_url', 'The %s is not a valide URL.');
+		
+        $pattern = "/^(http|https|ftp):\/\/([A-Z0-9][A-Z0-9_-]*(?:\.[A-Z0-9][A-Z0-9_-]*)+):?(\d+)?\/?/i";
+        return (bool) preg_match($pattern, $url);
+    }
+    
+    // --------------------------------------------------------------------
+
+	/**
+	 * Check if website exist
+	 * 
+	 * @access	public
+	 * @param	string URL
+	 * @return	bool
+	 */
+    public function real_url($url)
+    {
+		$this->CI->form_validation->set_message('real_url', 'The page with the specified %s URL does not respond');
+		return @fsockopen("$url", 80, $errno, $errstr, 30); exit();
+    }
+
+	// --------------------------------------------------------------------
 
 	/**
 	 * Unique in table
@@ -77,7 +166,7 @@ class MY_Form_validation extends CI_Form_validation {
 
 		list($table, $max) = explode(".", $params, 2);
 
-		$this->CI->db->select('user_id')->from($table)->order_by('create')->limit($max)->get();
+		$query = $this->CI->db->select('user_id')->from($table)->order_by('create')->limit($max)->get();
 
 		if ($query->num_rows() < $max)
 		{
@@ -97,6 +186,55 @@ class MY_Form_validation extends CI_Form_validation {
 		}
 			
 		return FALSE;
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Logged in
+	 * 
+	 * Checks if a user is already loged in
+	 * 
+	 * @access	public
+	 * @return	bool
+	 */	
+	public function not_logged_in()
+	{
+		$this->CI->load->library('user/auth');
+		
+		$this->CI->form_validation->set_message('not_logged_in', 'You are logged in. No multi accounts allowed.');
+		return !$this->CI->auth->logged_in();
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Markup parser
+	 * 
+	 * Rules:
+	 * *text* => <strong>text</strong>
+	 * _text_ => <em>text</em>
+	 * -text- => <i>text</i>
+	 * 
+	 * @access	public
+	 * @param	string
+	 * @return	string	Formatted text
+	 */	
+	public function markup_parser($str)
+	{
+		$find = array(
+		  "'\*(.*?)\*'is",
+		  "'_(.*?)_'is",
+		  "'-(.*?)-'is"
+		);
+		
+		$replace = array(
+		  '<strong>\\1</strong>',
+		  '<em>\\1</em>',
+		  '<span style="text-decoration: line-through;">\\1</span>'
+		);
+		
+		return preg_replace($find, $replace, $str);
 	}
 
 }
