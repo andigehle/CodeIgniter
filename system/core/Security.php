@@ -2,7 +2,7 @@
 /**
  * CodeIgniter
  *
- * An open source application development framework for PHP 5.1.6 or newer
+ * An open source application development framework for PHP 5.2.4 or newer
  *
  * NOTICE OF LICENSE
  *
@@ -25,8 +25,6 @@
  * @filesource
  */
 
-// ------------------------------------------------------------------------
-
 /**
  * Security Class
  *
@@ -43,14 +41,14 @@ class CI_Security {
 	 *
 	 * @var string
 	 */
-	protected $_xss_hash			= '';
+	protected $_xss_hash =	'';
 
 	/**
 	 * Random Hash for Cross Site Request Forgery Protection Cookie
 	 *
 	 * @var string
 	 */
-	protected $_csrf_hash			= '';
+	protected $_csrf_hash =	'';
 
 	/**
 	 * Expiration time for Cross Site Request Forgery Protection Cookie
@@ -58,71 +56,78 @@ class CI_Security {
 	 *
 	 * @var int
 	 */
-	protected $_csrf_expire			= 7200;
+	protected $_csrf_expire =	7200;
 
 	/**
 	 * Token name for Cross Site Request Forgery Protection Cookie
 	 *
 	 * @var string
 	 */
-	protected $_csrf_token_name		= 'ci_csrf_token';
+	protected $_csrf_token_name =	'ci_csrf_token';
 
 	/**
 	 * Cookie name for Cross Site Request Forgery Protection Cookie
 	 *
 	 * @var string
 	 */
-	protected $_csrf_cookie_name		= 'ci_csrf_token';
+	protected $_csrf_cookie_name =	'ci_csrf_token';
 
 	/**
 	 * List of never allowed strings
 	 *
 	 * @var array
 	 */
-	protected $_never_allowed_str = array(
-						'document.cookie'	=> '[removed]',
-						'document.write'	=> '[removed]',
-						'.parentNode'		=> '[removed]',
-						'.innerHTML'		=> '[removed]',
-						'window.location'	=> '[removed]',
-						'-moz-binding'		=> '[removed]',
-						'<!--'				=> '&lt;!--',
-						'-->'				=> '--&gt;',
-						'<![CDATA['			=> '&lt;![CDATA[',
-						'<comment>'			=> '&lt;comment&gt;'
-					);
+	protected $_never_allowed_str =	array(
+		'document.cookie'	=> '[removed]',
+		'document.write'	=> '[removed]',
+		'.parentNode'		=> '[removed]',
+		'.innerHTML'		=> '[removed]',
+		'window.location'	=> '[removed]',
+		'-moz-binding'		=> '[removed]',
+		'<!--'				=> '&lt;!--',
+		'-->'				=> '--&gt;',
+		'<![CDATA['			=> '&lt;![CDATA[',
+		'<comment>'			=> '&lt;comment&gt;'
+	);
 
 	/**
 	 * List of never allowed regex replacement
 	 *
 	 * @var array
 	 */
-	protected $_never_allowed_regex = array(
-						'javascript\s*:',
-						'expression\s*(\(|&\#40;)', // CSS and IE
-						'vbscript\s*:', // IE, surprise!
-						'Redirect\s+302'
-					);
+	protected $_never_allowed_regex =	array(
+		'javascript\s*:',
+		'expression\s*(\(|&\#40;)', // CSS and IE
+		'vbscript\s*:', // IE, surprise!
+		'Redirect\s+302'
+	);
 
+	/**
+	 * Initialize security class
+	 */
 	public function __construct()
 	{
-		// CSRF config
-		foreach(array('csrf_expire', 'csrf_token_name', 'csrf_cookie_name') as $key)
+		// Is CSRF protection enabled?
+		if (config_item('csrf_protection') === TRUE)
 		{
-			if (FALSE !== ($val = config_item($key)))
+			// CSRF config
+			foreach (array('csrf_expire', 'csrf_token_name', 'csrf_cookie_name') as $key)
 			{
-				$this->{'_'.$key} = $val;
+				if (FALSE !== ($val = config_item($key)))
+				{
+					$this->{'_'.$key} = $val;
+				}
 			}
-		}
 
-		// Append application specific cookie prefix
-		if (config_item('cookie_prefix'))
-		{
-			$this->_csrf_cookie_name = config_item('cookie_prefix').$this->_csrf_cookie_name;
-		}
+			// Append application specific cookie prefix
+			if (config_item('cookie_prefix'))
+			{
+				$this->_csrf_cookie_name = config_item('cookie_prefix').$this->_csrf_cookie_name;
+			}
 
-		// Set the CSRF hash
-		$this->_csrf_set_hash();
+			// Set the CSRF hash
+			$this->_csrf_set_hash();
+		}
 
 		log_message('debug', 'Security Class Initialized');
 	}
@@ -136,8 +141,8 @@ class CI_Security {
 	 */
 	public function csrf_verify()
 	{
-		// If no POST data exists we will set the CSRF cookie
-		if (count($_POST) === 0)
+		// If it's not a POST request we will set the CSRF cookie
+		if (strtoupper($_SERVER['REQUEST_METHOD']) !== 'POST')
 		{
 			return $this->csrf_set_cookie();
 		}
@@ -189,12 +194,20 @@ class CI_Security {
 		$expire = time() + $this->_csrf_expire;
 		$secure_cookie = (bool) config_item('cookie_secure');
 
-		if ($secure_cookie && ( ! isset($_SERVER['HTTPS']) OR $_SERVER['HTTPS'] == 'off' OR ! $_SERVER['HTTPS']))
+		if ($secure_cookie && (empty($_SERVER['HTTPS']) OR strtolower($_SERVER['HTTPS']) === 'off'))
 		{
 			return FALSE;
 		}
 
-		setcookie($this->_csrf_cookie_name, $this->_csrf_hash, $expire, config_item('cookie_path'), config_item('cookie_domain'), $secure_cookie);
+		setcookie(
+			$this->_csrf_cookie_name, 
+			$this->_csrf_hash, 
+			$expire, 
+			config_item('cookie_path'), 
+			config_item('cookie_domain'), 
+			$secure_cookie,
+			config_item('cookie_httponly')
+		);
 		log_message('debug', 'CRSF cookie Set');
 
 		return $this;
@@ -352,13 +365,13 @@ class CI_Security {
 		 * These words are compacted back to their correct state.
 		 */
 		$words = array(
-				'javascript', 'expression', 'vbscript', 'script',
-				'applet', 'alert', 'document', 'write', 'cookie', 'window'
-			);
+			'javascript', 'expression', 'vbscript', 'script',
+			'applet', 'alert', 'document', 'write', 'cookie', 'window'
+		);
 
 		foreach ($words as $word)
 		{
-			$word = implode("\s*", str_split($word)) . "\s*";
+			$word = implode('\s*', str_split($word)).'\s*';
 
 			// We only want to do this when it is followed by a non-word character
 			// That way valid stuff like "dealer to" does not become "dealerto"
@@ -424,7 +437,6 @@ class CI_Security {
 		$str = preg_replace('#(alert|cmd|passthru|eval|exec|expression|system|fopen|fsockopen|file|file_get_contents|readfile|unlink)(\s*)\((.*?)\)#si',
 					'\\1\\2&#40;\\3&#41;',
 					$str);
-
 
 		// Final clean up
 		// This adds a bit of extra precaution in case
@@ -513,23 +525,23 @@ class CI_Security {
 	public function sanitize_filename($str, $relative_path = FALSE)
 	{
 		$bad = array(
-				'../', '<!--', '-->', '<', '>',
-				"'", '"', '&', '$', '#',
-				'{', '}', '[', ']', '=',
-				';', '?', '%20', '%22',
-				'%3c',		// <
-				'%253c',	// <
-				'%3e',		// >
-				'%0e',		// >
-				'%28',		// (
-				'%29',		// )
-				'%2528',	// (
-				'%26',		// &
-				'%24',		// $
-				'%3f',		// ?
-				'%3b',		// ;
-				'%3d'		// =
-			);
+			'../', '<!--', '-->', '<', '>',
+			"'", '"', '&', '$', '#',
+			'{', '}', '[', ']', '=',
+			';', '?', '%20', '%22',
+			'%3c',		// <
+			'%253c',	// <
+			'%3e',		// >
+			'%0e',		// >
+			'%28',		// (
+			'%29',		// )
+			'%2528',	// (
+			'%26',		// &
+			'%24',		// $
+			'%3f',		// ?
+			'%3b',		// ;
+			'%3d'		// =
+		);
 
 		if ( ! $relative_path)
 		{
@@ -549,8 +561,8 @@ class CI_Security {
 	 * Callback function for xss_clean() to remove whitespace from
 	 * things like j a v a s c r i p t
 	 *
-	 * @param	type
-	 * @return	type
+	 * @param	array
+	 * @return	string
 	 */
 	protected function _compact_exploded_words($matches)
 	{
@@ -559,8 +571,8 @@ class CI_Security {
 
 	// --------------------------------------------------------------------
 
-	/*
-	 * Remove Evil HTML Attributes (like evenhandlers and style)
+	/**
+	 * Remove Evil HTML Attributes (like event handlers and style)
 	 *
 	 * It removes the evil attribute and either:
 	 * 	- Everything up until a space
@@ -601,7 +613,7 @@ class CI_Security {
 			}
 
 			// find occurrences of illegal attribute strings with quotes (042 and 047 are octal quotes)
-			preg_match_all('/('.implode('|', $evil_attributes).')\s*=\s*(\042|\047)([^\\2]*?)(\\2)/is',  $str, $matches, PREG_SET_ORDER);
+			preg_match_all('/('.implode('|', $evil_attributes).')\s*=\s*(\042|\047)([^\\2]*?)(\\2)/is', $str, $matches, PREG_SET_ORDER);
 
 			foreach ($matches as $attr)
 			{
@@ -633,7 +645,7 @@ class CI_Security {
 	{
 		return '&lt;'.$matches[1].$matches[2].$matches[3] // encode opening brace
 			// encode captured opening or closing brace to prevent recursive vectors:
-			. str_replace(array('>', '<'), array('&gt;', '&lt;'), $matches[4]);
+			.str_replace(array('>', '<'), array('&gt;', '&lt;'), $matches[4]);
 	}
 
 	// --------------------------------------------------------------------
